@@ -8,7 +8,7 @@ Primero:
 sudo ./scripts/install.sh --dry-run
 ```
 
-**Resultado esperado:** `detect-system.sh` identifica `OS_FAMILY=arch` y el instalador muestra qué paquetes usaría.
+**Resultado esperado:** `detect-system.sh` identifica `OS_FAMILY=arch` y el instalador muestra qué paquetes usaría. Si `asterisk` no está en los repositorios configurados, **el dry-run no se detiene**: muestra el fallback AUR que utilizaría.
 
 Luego:
 
@@ -16,38 +16,47 @@ Luego:
 sudo ./scripts/install.sh
 ```
 
-El instalador usa `pacman` y no compila Asterisk silenciosamente.
+El instalador sigue este orden para Asterisk:
 
-## Asterisk no disponible
+1. Si `asterisk` ya existe en el sistema, lo conserva y no lo reinstala.
+2. Si `pacman -Si asterisk` lo encuentra, lo instala con `pacman`.
+3. Si no está en los repositorios configurados, usa el paquete comunitario AUR `asterisk`.
+
+## Asterisk no disponible en pacman
 
 <a id="asterisk-no-disponible"></a>
 
-Si:
+En Arch/CachyOS es normal que:
 
 ```bash
 pacman -Si asterisk
 ```
 
-no encuentra el paquete, el script se detiene. En Arch el fallback habitual es el paquete AUR oficial comunitario:
+no encuentre un paquete en los repositorios habilitados. El instalador ya contempla ese caso y usa:
 
-```bash
-sudo pacman -S --needed base-devel git
-git clone https://aur.archlinux.org/asterisk.git
-cd asterisk
-makepkg -si
+```text
+https://aur.archlinux.org/asterisk.git
 ```
 
-**Resultado esperado:** `asterisk -V` devuelve una versión instalada y `systemctl enable --now asterisk` puede iniciar el servicio.
+Antes instala `base-devel` y `git`. La compilación se ejecuta como el usuario normal que invocó `sudo`, porque **`makepkg` no debe ejecutarse como root**. El paquete resultante se instala después con `pacman -U`.
 
-AUR: https://aur.archlinux.org/packages/asterisk
+Durante `--dry-run` solo se imprimen esos comandos; no se clona ni compila nada.
 
-Después volvé al repo y ejecutá:
+AUR es un repositorio comunitario/no oficial. Podés revisar el PKGBUILD antes de continuar en:
+
+https://aur.archlinux.org/packages/asterisk
+
+ArchWiki recomienda instalar `base-devel` y ejecutar `makepkg` como usuario no root:
+
+https://wiki.archlinux.org/title/Arch_User_Repository
+
+Si preferís instalar Asterisk manualmente, también podés hacerlo y luego ejecutar:
 
 ```bash
 sudo ./scripts/install.sh --resume
 ```
 
-**Resultado esperado:** la fase de plataforma vuelve a validarse y el flujo continúa.
+El instalador detectará `asterisk` ya presente y no lo recompilará.
 
 ## Módulos obligatorios
 
@@ -62,4 +71,4 @@ sudo asterisk -rx "module show like ari"
 
 ## Nota de versión
 
-La disponibilidad exacta de Asterisk en repositorios CachyOS/Arch puede cambiar. El script consulta el sistema actual con `pacman -Si`; la guía AUR es un fallback, no una suposición de que siempre sea necesario.
+La disponibilidad exacta de Asterisk en repositorios CachyOS/Arch puede cambiar. El instalador detecta el estado actual en cada ejecución y no asume que siempre será necesario usar AUR.
