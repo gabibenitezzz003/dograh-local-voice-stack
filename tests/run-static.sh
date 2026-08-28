@@ -14,6 +14,9 @@ echo 'PASS: sintaxis Bash'
 echo '== Contrato estático =='
 bash tests/test-configs.sh
 
+echo '== Seguridad Asterisk =='
+bash tests/test-asterisk-safety.sh
+
 echo '== Dry-run general =='
 bash tests/dry-run-test.sh
 
