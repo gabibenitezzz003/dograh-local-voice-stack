@@ -41,6 +41,18 @@ sudo ./scripts/install.sh --dry-run
 
 Si el dry-run falla, consultá [Troubleshooting](docs/TROUBLESHOOTING.md) y la guía de tu plataforma: [Arch/CachyOS](docs/ARCH-CACHYOS.md) o [Ubuntu/Debian](docs/UBUNTU-DEBIAN.md).
 
+## Validación antes de instalar
+
+Ejecutá toda la suite estática con un solo comando:
+
+```bash
+bash tests/run-static.sh
+```
+
+**Resultado esperado:** termina con `PASS: suite estática completa`. Esta suite valida sintaxis Bash, contrato de archivos/configuración, seguridad de `--dry-run` y el fallback Arch/AUR en aislamiento.
+
+El repositorio también incluye `.github/workflows/ci.yml`, por lo que GitHub Actions ejecuta esta misma suite en cada `push` y `pull_request`.
+
 Para instalar:
 
 ```bash
