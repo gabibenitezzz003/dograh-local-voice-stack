@@ -15,7 +15,9 @@ printf 'fake pacman %s\n' "$*"
 PACMAN
 chmod +x "$TMP/bin/pacman"
 
-output="$(PATH="$TMP/bin:$PATH" bash "$ROOT/scripts/install-arch.sh" --dry-run 2>&1)" || {
+ln -s /usr/bin/dirname "$TMP/bin/dirname"
+
+output="$(PATH="$TMP/bin" /usr/bin/bash "$ROOT/scripts/install-arch.sh" --dry-run 2>&1)" || {
   printf 'FAIL: install-arch --dry-run abortó cuando Asterisk no estaba en repositorios\n%s\n' "$output" >&2
   exit 1
 }
