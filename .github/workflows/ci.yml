@@ -1,0 +1,22 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  static-tests:
+    name: Static tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install test prerequisites
+        run: sudo apt-get update && sudo apt-get install -y iproute2 ufw
+
+      - name: Run static suite
+        run: bash tests/run-static.sh
