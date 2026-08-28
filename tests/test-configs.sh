@@ -17,8 +17,11 @@ assert_not_grep .env.example '(^|_)(PASSWORD|SECRET|TOKEN|API_KEY)=[^<${[:space:
 
 (( failures == 0 ))
 
+# Tarea 2
 for f in scripts/lib/common.sh scripts/detect-system.sh; do assert_file "$f"; done
-if [[ -f "$ROOT/scripts/lib/common.sh" ]]; then assert_grep scripts/lib/common.sh '^set -euo pipefail$'; fi
+if [[ -f "$ROOT/scripts/lib/common.sh" ]]; then
+  assert_grep scripts/lib/common.sh '^set -euo pipefail$'
+fi
 if [[ -f "$ROOT/scripts/detect-system.sh" ]]; then
   assert_grep scripts/detect-system.sh '^set -euo pipefail$'
   detector_output="$(bash "$ROOT/scripts/detect-system.sh" --env 2>/dev/null || true)"
@@ -29,7 +32,16 @@ fi
 
 (( failures == 0 ))
 
-for f in config/asterisk/http.conf.template config/asterisk/ari.conf.template config/asterisk/pjsip.conf.template config/asterisk/extensions.conf.template config/asterisk/websocket_client.conf.template scripts/configure-asterisk.sh; do assert_file "$f"; done
+# Tarea 3
+for f in \
+  config/asterisk/http.conf.template \
+  config/asterisk/ari.conf.template \
+  config/asterisk/pjsip.conf.template \
+  config/asterisk/extensions.conf.template \
+  config/asterisk/websocket_client.conf.template \
+  scripts/configure-asterisk.sh; do
+  assert_file "$f"
+done
 if [[ -f "$ROOT/config/asterisk/pjsip.conf.template" ]]; then
   assert_grep config/asterisk/pjsip.conf.template '^\[transport-udp\]$'
   assert_grep config/asterisk/pjsip.conf.template '^\[transport-tcp\]$'
@@ -52,7 +64,8 @@ fi
 
 (( failures == 0 ))
 
-for f in scripts/install-arch.sh scripts/install-debian.sh; do assert_file "$f"; done
+# Tarea 4
+for f in scripts/install-arch.sh scripts/install-debian.sh tests/test-install-arch-dry-run.sh; do assert_file "$f"; done
 if [[ -f "$ROOT/scripts/install-arch.sh" ]]; then
   assert_grep scripts/install-arch.sh '^set -euo pipefail$'
   assert_grep scripts/install-arch.sh 'pacman -Si asterisk'
@@ -63,9 +76,13 @@ if [[ -f "$ROOT/scripts/install-debian.sh" ]]; then
   assert_grep scripts/install-debian.sh 'apt-get update'
   assert_grep scripts/install-debian.sh '\-\-dry-run'
 fi
+if [[ -f "$ROOT/tests/test-install-arch-dry-run.sh" ]]; then
+  bash "$ROOT/tests/test-install-arch-dry-run.sh" || fail "regresión install-arch --dry-run"
+fi
 
 (( failures == 0 ))
 
+# Tarea 5
 for f in scripts/configure-dograh.sh config/dograh/.env.example config/dograh/docker-compose.override.yml; do assert_file "$f"; done
 if [[ -f "$ROOT/config/dograh/docker-compose.override.yml" ]]; then
   assert_grep config/dograh/docker-compose.override.yml '^services:'
@@ -83,6 +100,7 @@ fi
 
 (( failures == 0 ))
 
+# Tarea 6
 assert_file scripts/configure-firewall.sh
 if [[ -f "$ROOT/scripts/configure-firewall.sh" ]]; then
   assert_grep scripts/configure-firewall.sh 'DOGRAH_DOCKER_SUBNET'
@@ -95,8 +113,11 @@ fi
 
 (( failures == 0 ))
 
+# Tarea 7
 for f in config/ollama/override.conf scripts/configure-ollama.sh; do assert_file "$f"; done
-if [[ -f "$ROOT/config/ollama/override.conf" ]]; then assert_grep config/ollama/override.conf 'OLLAMA_HOST=0\.0\.0\.0:11434'; fi
+if [[ -f "$ROOT/config/ollama/override.conf" ]]; then
+  assert_grep config/ollama/override.conf 'OLLAMA_HOST=0\.0\.0\.0:11434'
+fi
 if [[ -f "$ROOT/scripts/configure-ollama.sh" ]]; then
   assert_grep scripts/configure-ollama.sh '/v1/models'
   assert_grep scripts/configure-ollama.sh '/v1/chat/completions'
@@ -106,9 +127,15 @@ fi
 
 (( failures == 0 ))
 
+# Tarea 8
 for f in scripts/verify-stack.sh scripts/doctor.sh; do assert_file "$f"; done
 if [[ -f "$ROOT/scripts/verify-stack.sh" ]]; then
-  for check_id in system.os system.docker asterisk.service asterisk.sip_udp asterisk.sip_tcp asterisk.ari_http asterisk.ari_auth asterisk.websocket_modules sip.endpoint_2001 sip.echo_600 dograh.api_health dograh.ari_manager dograh.ari_websocket ollama.api ollama.model ollama.from_dograh firewall.sip firewall.rtp firewall.ari firewall.ollama docker.dns_collision; do
+  for check_id in \
+    system.os system.docker asterisk.service asterisk.sip_udp asterisk.sip_tcp \
+    asterisk.ari_http asterisk.ari_auth asterisk.websocket_modules \
+    sip.endpoint_2001 sip.echo_600 dograh.api_health dograh.ari_manager \
+    dograh.ari_websocket ollama.api ollama.model ollama.from_dograh \
+    firewall.sip firewall.rtp firewall.ari firewall.ollama docker.dns_collision; do
     grep -Fq "$check_id" "$ROOT/scripts/verify-stack.sh" && pass "verify-stack define $check_id" || fail "verify-stack no define $check_id"
   done
   assert_grep scripts/verify-stack.sh '\-\-json'
@@ -121,6 +148,7 @@ fi
 
 (( failures == 0 ))
 
+# Tarea 9
 assert_file scripts/install.sh
 if [[ -f "$ROOT/scripts/install.sh" ]]; then
   assert_grep scripts/install.sh '^set -euo pipefail$'
@@ -134,6 +162,7 @@ fi
 
 (( failures == 0 ))
 
+# Tarea 10
 for f in tests/smoke-test.sh scripts/uninstall.sh; do assert_file "$f"; done
 if [[ -f "$ROOT/tests/smoke-test.sh" ]]; then
   assert_grep tests/smoke-test.sh '/v1/chat/completions'
@@ -150,7 +179,13 @@ fi
 
 (( failures == 0 ))
 
-for f in docs/ARCH-CACHYOS.md docs/UBUNTU-DEBIAN.md docs/DOGRAH.md docs/ASTERISK.md docs/LINPHONE.md docs/OLLAMA.md docs/FIREWALL.md docs/TROUBLESHOOTING.md docs/SECURITY.md docs/HOW-IT-WORKS.md; do assert_file "$f"; done
+# Tarea 11
+for f in \
+  docs/ARCH-CACHYOS.md docs/UBUNTU-DEBIAN.md docs/DOGRAH.md docs/ASTERISK.md \
+  docs/LINPHONE.md docs/OLLAMA.md docs/FIREWALL.md docs/TROUBLESHOOTING.md \
+  docs/SECURITY.md docs/HOW-IT-WORKS.md; do
+  assert_file "$f"
+done
 
 if [[ -f "$ROOT/README.md" ]]; then
   assert_grep README.md 'Linphone.*600|600.*Linphone'
@@ -162,10 +197,25 @@ if [[ -f "$ROOT/README.md" ]]; then
 fi
 
 if [[ -f "$ROOT/docs/TROUBLESHOOTING.md" ]]; then
-  for incident in 'Protocol not supported \[93\]' '401 Unauthorized' 'No objects found' 'ARI.*[Tt]imeout|Timeout.*ARI' 'UFW.*Docker|Docker.*UFW' 'Backend connection failed' '127\.0\.0\.1:11434|127\.0\.0\.1.*Ollama' 'postgres' 'Asterisk.*timeout|timeout.*Asterisk' 'Linphone.*Unauthorized|Unauthorized.*Linphone' 'RTP|sin audio' 'Caller ID.*SIP endpoint|SIP endpoint.*Caller ID' 'Baresip.*127\.0\.0\.1|127\.0\.0\.1.*Baresip'; do
+  for incident in \
+    'Protocol not supported \[93\]' \
+    '401 Unauthorized' \
+    'No objects found' \
+    'ARI.*[Tt]imeout|Timeout.*ARI' \
+    'UFW.*Docker|Docker.*UFW' \
+    'Backend connection failed' \
+    '127\.0\.0\.1:11434|127\.0\.0\.1.*Ollama' \
+    'postgres' \
+    'Asterisk.*timeout|timeout.*Asterisk' \
+    'Linphone.*Unauthorized|Unauthorized.*Linphone' \
+    'RTP|sin audio' \
+    'Caller ID.*SIP endpoint|SIP endpoint.*Caller ID' \
+    'Baresip.*127\.0\.0\.1|127\.0\.0\.1.*Baresip'; do
     assert_grep docs/TROUBLESHOOTING.md "$incident"
   done
-  for heading in '^### Síntoma$' '^### Causa$' '^### Diagnóstico$' '^### Solución$' '^### Verificación$'; do assert_grep docs/TROUBLESHOOTING.md "$heading"; done
+  for heading in '^### Síntoma$' '^### Causa$' '^### Diagnóstico$' '^### Solución$' '^### Verificación$'; do
+    assert_grep docs/TROUBLESHOOTING.md "$heading"
+  done
 fi
 
 if [[ -f "$ROOT/docs/SECURITY.md" ]]; then
