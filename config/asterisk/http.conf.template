@@ -1,0 +1,5 @@
+[general](+)
+enabled=yes
+servername=Asterisk
+bindaddr=0.0.0.0
+bindport={{ARI_PORT}}

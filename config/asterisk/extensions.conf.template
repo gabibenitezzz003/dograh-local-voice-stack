@@ -1,0 +1,5 @@
+[from-internal]
+exten => {{ECHO_EXTENSION}},1,Answer()
+ same => n,Wait(1)
+ same => n,Echo()
+ same => n,Hangup()
