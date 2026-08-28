@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/lib/common.sh
 source "$ROOT/scripts/lib/common.sh"
 
 BEGIN_MARKER='; BEGIN DOGRAH-LOCAL-VOICE-STACK'
@@ -39,6 +40,7 @@ ensure_secrets() {
   ensure_runtime_dirs
   local secrets="$RUNTIME_DIR/secrets.env"
   if [[ -f "$secrets" ]]; then
+    # shellcheck disable=SC1090
     source "$secrets"
   fi
   if [[ -z "${ARI_PASSWORD:-}" ]]; then
@@ -84,6 +86,88 @@ managed_block() {
     take {print}
   ' "$source" 2>/dev/null || true
 }
+
+outside_managed_content() {
+  local source="$1"
+  [[ -f "$source" ]] || return 0
+  strip_managed_block "$source"
+}
+
+assert_no_existing_conflicts() {
+  local conflicts=() content section
+
+  content="$(outside_managed_content "$ASTERISK_DIR/pjsip.conf")"
+  for section in transport-udp transport-tcp "$SIP_EXTENSION" "$SIP_EXTENSION-auth"; do
+    if grep -Fxq "[$section]" <<<"$content"; then
+      conflicts+=("pjsip.conf:[$section]")
+    fi
+  done
+
+  content="$(outside_managed_content "$ASTERISK_DIR/ari.conf")"
+  grep -Fxq '[dograh]' <<<"$content" && conflicts+=("ari.conf:[dograh]")
+
+  content="$(outside_managed_content "$ASTERISK_DIR/websocket_client.conf")"
+  grep -Fxq '[dograh]' <<<"$content" && conflicts+=("websocket_client.conf:[dograh]")
+
+  content="$(outside_managed_content "$ASTERISK_DIR/extensions.conf")"
+  if grep -Eq "^[[:space:]]*exten[[:space:]]*=>[[:space:]]*${ECHO_EXTENSION}," <<<"$content"; then
+    conflicts+=("extensions.conf:${ECHO_EXTENSION}")
+  fi
+
+  if (( ${#conflicts[@]} > 0 )); then
+    die "Conflicto de configuración existente: ${conflicts[*]}. El instalador no modificó Asterisk. Esta instalación ya usa IDs que el proyecto administra; usá una VM/máquina limpia o migrá esos IDs antes de una instalación real."
+  fi
+}
+
+CONFIG_FILES=(http.conf ari.conf pjsip.conf extensions.conf websocket_client.conf)
+TXN_DIR=""
+TXN_ACTIVE=false
+
+begin_transaction() {
+  ensure_runtime_dirs
+  TXN_DIR="$RUNTIME_DIR/backups/transaction-$(date +%Y%m%d-%H%M%S)-$$"
+  mkdir -p "$TXN_DIR"
+  chmod 700 "$TXN_DIR"
+  local name source
+  for name in "${CONFIG_FILES[@]}"; do
+    source="$ASTERISK_DIR/$name"
+    if [[ -e "$source" ]]; then
+      cp -a "$source" "$TXN_DIR/$name"
+    else
+      : > "$TXN_DIR/$name.absent"
+    fi
+  done
+  TXN_ACTIVE=true
+}
+
+rollback_transaction() {
+  [[ "$TXN_ACTIVE" == true ]] || return 0
+  local name target
+  set +e
+  for name in "${CONFIG_FILES[@]}"; do
+    target="$ASTERISK_DIR/$name"
+    if [[ -f "$TXN_DIR/$name.absent" ]]; then
+      rm -f "$target"
+    elif [[ -e "$TXN_DIR/$name" ]]; then
+      cp -a "$TXN_DIR/$name" "$target"
+    fi
+  done
+  if command -v systemctl >/dev/null 2>&1 && command -v asterisk >/dev/null 2>&1; then
+    systemctl restart asterisk >/dev/null 2>&1 || true
+  fi
+  TXN_ACTIVE=false
+  log_ok "Rollback de Asterisk completado; se restauró el estado anterior"
+  set -e
+}
+
+on_exit() {
+  local status=$?
+  if (( status != 0 )) && [[ "$TXN_ACTIVE" == true ]]; then
+    rollback_transaction
+  fi
+  exit "$status"
+}
+trap on_exit EXIT
 
 ensure_general_section() {
   local target="$1"
@@ -162,6 +246,12 @@ rendered_pjsip="$(render_template "$ROOT/config/asterisk/pjsip.conf.template")"
 rendered_extensions="$(render_template "$ROOT/config/asterisk/extensions.conf.template")"
 rendered_ws="$(render_template "$ROOT/config/asterisk/websocket_client.conf.template")"
 
+assert_no_existing_conflicts
+
+if [[ "$RENDER_ONLY" == false ]]; then
+  begin_transaction
+fi
+
 old_pjsip_block=""
 if [[ -f "$ASTERISK_DIR/pjsip.conf" ]]; then
   old_pjsip_block="$(managed_block "$ASTERISK_DIR/pjsip.conf")"
@@ -194,4 +284,5 @@ elif [[ "$changed" == true ]]; then
   asterisk -rx 'core reload' >/dev/null
 fi
 validate_runtime
+TXN_ACTIVE=false
 log_ok "Asterisk configurado y validado"
